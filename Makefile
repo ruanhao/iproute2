@@ -18,7 +18,8 @@ DEFINES+= -DNO_SHARED_LIBS
 endif
 
 #options if you have a bind>=4.9.4 libresolv (or, maybe, glibc)
-LDLIBS=-lresolv
+LDLIBS +=-lresolv -lmicrocebus -lpthread
+
 ADDLIB=
 
 #options for decnet
@@ -34,6 +35,9 @@ CFLAGS = $(CCOPTS) -I../include $(DEFINES)
 YACCFLAGS = -d -t -v
 
 SUBDIRS=lib ip tc misc netem genl
+
+
+LDFLAGS=-L$(HOME)/.emacs.d/microcebus/lib
 
 LIBNETLINK=../lib/libnetlink.a ../lib/libutil.a
 LDLIBS += $(LIBNETLINK)
