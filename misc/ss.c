@@ -112,6 +112,8 @@ struct filter default_filter = {
 
 struct filter current_filter;
 
+// env:  "PROC_SLABINFO"
+// name: "slabinfo"
 static FILE *generic_proc_open(const char *env, const char *name)
 {
     const char *p = getenv(env);
@@ -386,7 +388,6 @@ int get_slabstat(struct slabstat *s)
     if (!fp)
         return -1;
 
-
     cnt = sizeof(*s)/sizeof(int);
 
     H_DEBUG_MSG("cnt: %d", cnt);
@@ -395,22 +396,23 @@ int get_slabstat(struct slabstat *s)
     H_DEBUG_MSG("buf: %s", buf);
     while(fgets(buf, sizeof(buf), fp) != NULL) {
         int i;
-        for (i=0; i<sizeof(slabstat_ids)/sizeof(slabstat_ids[0]); i++) {
-            if (memcmp(buf, slabstat_ids[i], strlen(slabstat_ids[i])) == 0) {
-                sscanf(buf, "%*s%d", ((int *)s) + i);
-                cnt--;
-                break;
-            }
-        }
-        if (cnt <= 0)
-            break;
-    }
+        for (i=0; i<sizeof(slabstat_ids)/sizeof(slabstat_ids[0]); i++) {              // static const char *slabstat_ids[] =
+            if (memcmp(buf, slabstat_ids[i], strlen(slabstat_ids[i])) == 0) {         // {
+                sscanf(buf, "%*s%d", ((int *)s) + i);                                 //     "sock",
+                cnt--;                                                                //     "tcp_bind_bucket",
+                break;                                                                //     "tcp_tw_bucket",
+            }                                                                         //     "tcp_open_request",
+        }                                                                             //     "skbuff_head_cache",
+        if (cnt <= 0)                                                                 // };
 
-    fclose(fp);
-    return 0;
-}
-
-static const char *sstate_name[] = {
+            break;                                                                    // struct slabstat
+    }                                                                                 // {
+                                                                                      //     int socks;
+    fclose(fp);                                                                       //     int tcp_ports;
+    return 0;                                                                         //     int tcp_tws;
+}                                                                                     //     int tcp_syns;
+                                                                                      //     int skbs;
+static const char *sstate_name[] = {                                                  // };
     "UNKNOWN",
     [TCP_ESTABLISHED] = "ESTAB",
     [TCP_SYN_SENT] = "SYN-SENT",
@@ -2252,6 +2254,7 @@ struct snmpstat
     int tcp_estab;
 };
 
+/* get_snmp_int("Tcp:", "CurrEstab", &sn.tcp_estab) < 0 */
 int get_snmp_int(char *proto, char *key, int *result)
 {
     char buf[1024];
@@ -2322,7 +2325,7 @@ static void get_sockstat_line(char *line, struct sockstat *s)
 {
     char id[256], rem[256];
 
-    if (sscanf(line, "%[^ ] %[^\n]\n", id, rem) != 2)
+    if (sscanf(line, "%s %[^\n]", id, rem) != 2)
         return;
 
     if (strcmp(id, "sockets:") == 0)
@@ -2373,6 +2376,14 @@ int get_sockstat(struct sockstat *s)
 
     memset(s, 0, sizeof(*s));
 
+// $> cat /proc/net/sockstat
+// sockets: used 3966
+// TCP: inuse 369 orphan 0 tw 0 alloc 500 mem 59
+// UDP: inuse 22 mem 13
+// UDPLITE: inuse 0
+// RAW: inuse 3
+// FRAG: inuse 0 memory 0
+
     if ((fp = net_sockstat_open()) == NULL)
         return -1;
     while(fgets(buf, sizeof(buf), fp) != NULL)
@@ -2391,7 +2402,6 @@ int get_sockstat(struct sockstat *s)
 int print_summary(void)
 {
 
-    H_DEBUG_MSG("in print_summary");
 
     struct sockstat s;
     struct snmpstat sn;
@@ -2718,15 +2728,13 @@ int main(int argc, char *argv[])
     argc -= optind;
     argv += optind;
 
-    H_DEBUG_MSG("Begin to analyze");
 
     get_slabstat(&slabstat);
 
     show_slabstat(&slabstat);
 
 
-
-    if (do_summary) {
+    if (do_summary) {       // DO_SUMMARY
         print_summary();
         if (do_default && argc == 0)
             exit(0);
@@ -2902,4 +2910,3 @@ int main(int argc, char *argv[])
         tcp_show(&current_filter, DCCPDIAG_GETSOCK);
     return 0;
 }
-
